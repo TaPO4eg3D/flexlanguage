@@ -24,7 +24,7 @@ impl<'a> Lexer<'a> {
         return lexer;
     }
 
-    pub fn next_token(&mut self) -> Token {
+    pub fn next_token(&mut self) -> Token<'a> {
         self.skip_whitespace();
         let literal = self.ch.to_string();
 
