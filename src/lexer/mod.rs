@@ -1,4 +1,4 @@
-mod tokens;
+pub mod tokens;
 
 use tokens::*;
 
@@ -11,7 +11,7 @@ pub struct Lexer<'a> {
 }
 
 impl<'a> Lexer<'a> {
-    fn new(length: usize, input: &'a mut Vec<char>) -> Lexer<'a> {
+    pub fn new(length: usize, input: &'a mut Vec<char>) -> Lexer<'a> {
         let mut lexer = Lexer {
             length,
             input,
@@ -24,23 +24,7 @@ impl<'a> Lexer<'a> {
         return lexer;
     }
 
-    fn read_char(&mut self) {
-        if self.read_position >= self.length {
-            self.ch = 0 as char;
-        } else {
-            match self.input.get(self.read_position) {
-                Some(ch) => {
-                    self.ch = *ch;
-                },
-                None => {}
-            }
-        }
-
-        self.position = self.read_position;
-        self.read_position += 1;
-    }
-
-    fn next_token(&mut self) -> Token {
+    pub fn next_token(&mut self) -> Token {
         self.skip_whitespace();
         let literal = self.ch.to_string();
 
@@ -105,6 +89,22 @@ impl<'a> Lexer<'a> {
 
         self.read_char();
         tok
+    }
+
+    fn read_char(&mut self) {
+        if self.read_position >= self.length {
+            self.ch = 0 as char;
+        } else {
+            match self.input.get(self.read_position) {
+                Some(ch) => {
+                    self.ch = *ch;
+                },
+                None => {}
+            }
+        }
+
+        self.position = self.read_position;
+        self.read_position += 1;
     }
 
     fn read_number(&mut self) -> String {

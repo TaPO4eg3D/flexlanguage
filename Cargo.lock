@@ -3,7 +3,7 @@
 version = 3
 
 [[package]]
-name = "monkeylang"
+name = "flexlang"
 version = "0.1.0"
 dependencies = [
  "phf",
