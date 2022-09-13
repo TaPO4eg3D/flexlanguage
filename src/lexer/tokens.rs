@@ -1,6 +1,6 @@
 use phf::phf_map;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Token<'a> {
     pub kind: &'a str,
     pub literal: String,

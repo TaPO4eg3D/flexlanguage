@@ -20,8 +20,7 @@ impl<'a> Lexer<'a> {
             read_position: 0,
         };
         lexer.read_char();
-        
-        return lexer;
+        lexer
     }
 
     pub fn next_token(&mut self) -> Token<'a> {
@@ -134,21 +133,21 @@ impl<'a> Lexer<'a> {
 
     fn peek_char(&self) -> char {
         if self.read_position >= self.length {
-            return 0 as char;
+            0 as char
         } else {
-            return self.input[self.read_position];
+            self.input[self.read_position]
         }
     }
 }
 
 fn is_letter(ch: char) -> bool {
-    return 'a' <= ch && ch <= 'z'
+    'a' <= ch && ch <= 'z'
         || 'A' <= ch && ch <= 'Z'
         || ch == '_'
 }
 
 fn is_digit(ch: char) -> bool {
-    return '0' <= ch && ch <= '9';
+    '0' <= ch && ch <= '9'
 }
 
 #[cfg(test)]
