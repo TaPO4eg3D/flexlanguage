@@ -1,17 +1,34 @@
-use crate::lexer::tokens::*;
+#[derive(Debug)]
+pub struct Ident(pub String);
 
-pub struct Expression {}
-
-pub struct LetStatement<'a> {
-    pub name: Token<'a>,
-    // pub value: Expression,
+#[derive(Debug, Eq, PartialEq)]
+pub enum Prefix {
+    Plus,
+    Minus,
+    Bang,
 }
 
-pub enum StatementKind<'a> {
-    NotLet,
-    LET(LetStatement<'a>),
+#[derive(Debug)]
+pub enum Literal {
+    Int(i64),
 }
 
-pub struct Program<'a> {
-    pub statements: Vec<StatementKind<'a>>,
+#[derive(Debug)]
+pub enum Expr {
+    Empty,
+    Ident(Ident),
+    Literal(Literal),
+    Prefix(Prefix, Box<Expr>),
+}
+
+#[derive(Debug)]
+pub enum Stmt {
+    Empty,
+    Let(Ident, Expr),
+    Return(Expr),
+    Expr(Expr),
+}
+
+pub struct Program {
+    pub statements: Vec<Stmt>,
 }
