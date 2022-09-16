@@ -18,6 +18,20 @@ struct Parser<'a> {
     peek_token: Token<'a>,
 }
 
+fn token_to_precedence(tok: &Token) -> Precedence {
+    match tok.kind {
+        EQ => Precedence::Equals,
+        NOT_EQ => Precedence::Equals,
+        LT => Precedence::LessGreater,
+        GT => Precedence::LessGreater,
+        PLUS => Precedence::Sum,
+        MINUS => Precedence::Sum,
+        SLASH => Precedence::Product,
+        ASTERISK => Precedence::Product,
+        _ => Precedence::Lowest,
+    }
+}
+
 impl<'a> Parser<'a> {
     pub fn new(lexer: &'a mut Lexer<'a>) -> Parser<'a> {
         let cur_token = lexer.next_token();
@@ -114,7 +128,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_expression_statement(&mut self) -> Option<Stmt> {
-        let statement = match self.prefix_parse_token() {
+        let statement = match self.parse_expression(Precedence::Lowest) {
             Some(expr) => Some(Stmt::Expr(expr)),
             _ => None,
         };
@@ -126,7 +140,25 @@ impl<'a> Parser<'a> {
         statement
     }
 
-    fn prefix_parse_token(&mut self) -> Option<Expr> {
+    fn parse_expression(&mut self, precedence: Precedence) -> Option<Expr> {
+        let mut left = self.prefix_token_parse();
+
+        loop {
+            let peek_precedence = token_to_precedence(&self.peek_token);
+
+            if self.peek_token.kind == SEMICOLON || 
+               peek_precedence <= precedence {
+                break
+            }
+
+            self.next_token();
+            left = self.infix_token_parse(left.unwrap());
+        }
+
+        left
+    }
+
+    fn prefix_token_parse(&mut self) -> Option<Expr> {
         match self.cur_token.kind {
             IDENT => Some(self.parse_identifier()),
             INT => self.parse_integer_literal(),
@@ -139,6 +171,22 @@ impl<'a> Parser<'a> {
                 };
                 self.errors.push(error); None
             },
+        }
+    }
+
+    fn infix_token_parse(&mut self, left: Expr) -> Option<Expr> {
+        match self.cur_token.kind {
+            PLUS | MINUS | SLASH | ASTERISK | EQ | NOT_EQ | LT | GT => {
+                self.parse_infix_expression(left)
+            },
+            _ => {
+                let error = ParserError {
+                    row: 0,
+                    column: 0,
+                    text: format!("No infix parse function for '{}'", self.cur_token.kind),
+                };
+                self.errors.push(error); None
+            }
         }
     }
 
@@ -181,12 +229,35 @@ impl<'a> Parser<'a> {
             }
         };
 
-        match self.prefix_parse_token() {
+        match self.prefix_token_parse() {
             Some(expr) => Some(
                 Expr::Prefix(prefix, Box::new(expr))
             ),
             _ => None
         }
+    }
+
+    fn parse_infix_expression(&mut self, left: Expr) -> Option<Expr> {
+        // TODO: Add an error message
+        let operator = str_to_infix(&self.cur_token.kind).unwrap();
+        let precedence = token_to_precedence(&self.cur_token);
+
+        self.next_token();
+
+        let right = self.parse_expression(precedence);
+        let right = match right {
+            Some(expr) => expr,
+            _ => {
+                let error = ParserError {
+                    row: 0,
+                    column: 0,
+                    text: String::from("Expect to have right expression!"),
+                };
+                self.errors.push(error); return None
+            }
+        };
+        
+        Some(Expr::Infix(operator, Box::new(left), Box::new(right)))
     }
 
     fn expect_peek(&mut self, kind: &str) -> bool {
@@ -334,8 +405,8 @@ mod test {
     #[test]
     fn test_prefix_expressions() {
         let test_cases = vec![
-            ("!5", "!", 5),
-            ("-15", "-", 15),
+            ("!5", Prefix::Bang, 5),
+            ("-15", Prefix::Minus, 15),
         ];
 
         for test_case in test_cases {
@@ -351,13 +422,7 @@ mod test {
 
             match &program.statements[0] {
                 Stmt::Expr(Expr::Prefix(prefix, expr)) => {
-                    let p = match exp_prefix {
-                        "!" => Prefix::Bang,
-                        "-" => Prefix::Minus,
-                        _ => panic!(),
-                    };
-
-                    assert_eq!(&p, prefix);
+                    assert_eq!(&exp_prefix, prefix);
 
                     if let Expr::Literal(Literal::Int(i)) = **expr {
                         assert_eq!(i, result);
@@ -366,6 +431,47 @@ mod test {
                     }
                 }
                 _ => panic!("Expect to have prefx expression"),
+            };
+        }
+    }
+
+    #[test]
+    fn test_parsing_infix_expressions() {
+        let test_cases = vec![
+            ("5 + 5", Literal::Int(5), Infix::Plus, Literal::Int(5)),
+            ("5 - 5", Literal::Int(5), Infix::Minus, Literal::Int(5)),
+            ("5 * 5", Literal::Int(5), Infix::Asterisk, Literal::Int(5)),
+            ("5 / 5", Literal::Int(5), Infix::Slash, Literal::Int(5)),
+            ("5 > 5", Literal::Int(5), Infix::Gt, Literal::Int(5)),
+            ("5 < 5", Literal::Int(5), Infix::Lt, Literal::Int(5)),
+            ("5 == 5", Literal::Int(5), Infix::Eq, Literal::Int(5)),
+            ("5 != 5", Literal::Int(5), Infix::NotEq, Literal::Int(5)),
+        ];
+
+        for test_case in test_cases {
+            let (input, elop, einfix, erop) = test_case;
+
+            let mut chars: Vec<char> = input.chars().collect();
+            let mut lexer = Lexer::new(input.len(), &mut chars);
+            let mut parser = Parser::new(&mut lexer);
+
+            let program = parser.parse_program();
+            expect_no_errors(&parser.errors);
+            assert_eq!(program.statements.len(), 1);
+
+            match &program.statements[0] {
+                Stmt::Expr(Expr::Infix(infix, lexpr, rexpr)) => {
+                    assert_eq!(infix, &einfix);
+                    
+                    if let Expr::Literal(l) = &**lexpr {
+                        assert_eq!(l, &elop);
+                    } else { panic!() }
+
+                    if let Expr::Literal(r) = &**rexpr {
+                        assert_eq!(r, &erop);
+                    } else { panic!() }
+                }
+                _ => panic!("Expect to have infix expression"),
             };
         }
     }
