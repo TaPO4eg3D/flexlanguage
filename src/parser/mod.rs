@@ -239,7 +239,7 @@ impl<'a> Parser<'a> {
 
     fn parse_infix_expression(&mut self, left: Expr) -> Option<Expr> {
         // TODO: Add an error message
-        let operator = str_to_infix(&self.cur_token.kind).unwrap();
+        let operator = Infix::get(&self.cur_token.kind).unwrap();
         let precedence = token_to_precedence(&self.cur_token);
 
         self.next_token();
@@ -335,6 +335,10 @@ mod test {
             if let Stmt::Let(ident, expr) = stmt {
                 assert_eq!(&ident.0, expect_ident);
                 // TODO: Compare value
+                assert_eq!(
+                    format!("{}", stmt),
+                    format!("let {} = ;", expect_ident)
+                );
             } else {
                 panic!("Expect to have only LET statements");
             }
@@ -357,6 +361,7 @@ mod test {
 
         for stmt in program.statements {
             if let Stmt::Return(Expr::Empty) = stmt {
+                assert_eq!(format!("{}", stmt), "return ;");
                 // TODO: Should be integer literal
             } else {
                 panic!("Expect Return Statement!");
@@ -423,6 +428,10 @@ mod test {
             match &program.statements[0] {
                 Stmt::Expr(Expr::Prefix(prefix, expr)) => {
                     assert_eq!(&exp_prefix, prefix);
+                    assert_eq!(
+                        format!("{}", &program.statements[0]),
+                        format!("({});", input)
+                    );
 
                     if let Expr::Literal(Literal::Int(i)) = **expr {
                         assert_eq!(i, result);
@@ -462,6 +471,10 @@ mod test {
             match &program.statements[0] {
                 Stmt::Expr(Expr::Infix(infix, lexpr, rexpr)) => {
                     assert_eq!(infix, &einfix);
+                    assert_eq!(
+                        format!("{}", &program.statements[0]),
+                        format!("({});", input)
+                    );
                     
                     if let Expr::Literal(l) = &**lexpr {
                         assert_eq!(l, &elop);
