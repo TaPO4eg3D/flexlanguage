@@ -111,6 +111,10 @@ impl fmt::Display for Expr {
                 let mut s = String::new();
                 write!(&mut s, "{}", literal).unwrap(); s
             },
+            Expr::Ident(ident) => {
+                let mut s = String::new();
+                write!(&mut s, "{}", ident).unwrap(); s
+            },
             Expr::Infix(infix, lexpr, rexpr) => {
                 let mut s = String::new();
                 write!(

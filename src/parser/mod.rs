@@ -489,6 +489,49 @@ mod test {
         }
     }
 
+    #[test]
+    fn test_precedence_parsing() {
+        let test_cases = vec![
+            (
+                "-a * b",
+                "((-a) * b);",
+            ),
+            (
+                "!-a",
+                "(!(-a));",
+            ),
+            (
+                "a + b - c",
+                "((a + b) - c);",
+            ),
+            (
+                "a - b * c",
+                "(a - (b * c));",
+            ),
+            (
+                "a + b * c + d / e - f",
+                "(((a + (b * c)) + (d / e)) - f);",
+            )
+        ];
+
+        for test_case in test_cases {
+            let (input, expect) = test_case;
+
+            let mut chars: Vec<char> = input.chars().collect();
+            let mut lexer = Lexer::new(input.len(), &mut chars);
+            let mut parser = Parser::new(&mut lexer);
+
+            let program = parser.parse_program();
+            expect_no_errors(&parser.errors);
+            assert_eq!(program.statements.len(), 1);
+
+            assert_eq!(
+                format!("{}", &program.statements[0]),
+                expect,
+            );
+        }
+    }
+
     fn expect_no_errors(errors: &Vec<ParserError>) {
         if errors.len() > 0 {
             for error in errors {
