@@ -18,20 +18,6 @@ struct Parser<'a> {
     peek_token: Token<'a>,
 }
 
-fn token_to_precedence(tok: &Token) -> Precedence {
-    match tok.kind {
-        EQ => Precedence::Equals,
-        NOT_EQ => Precedence::Equals,
-        LT => Precedence::LessGreater,
-        GT => Precedence::LessGreater,
-        PLUS => Precedence::Sum,
-        MINUS => Precedence::Sum,
-        SLASH => Precedence::Product,
-        ASTERISK => Precedence::Product,
-        _ => Precedence::Lowest,
-    }
-}
-
 impl<'a> Parser<'a> {
     pub fn new(lexer: &'a mut Lexer<'a>) -> Parser<'a> {
         let cur_token = lexer.next_token();
@@ -144,7 +130,7 @@ impl<'a> Parser<'a> {
         let mut left = self.prefix_token_parse();
 
         loop {
-            let peek_precedence = token_to_precedence(&self.peek_token);
+            let peek_precedence = Precedence::from_token(&self.peek_token);
 
             if self.peek_token.kind == SEMICOLON || 
                peek_precedence <= precedence {
@@ -162,6 +148,7 @@ impl<'a> Parser<'a> {
         match self.cur_token.kind {
             IDENT => Some(self.parse_identifier()),
             INT => self.parse_integer_literal(),
+            TRUE | FALSE => self.parse_boolean_literal(),
             BANG | MINUS => self.parse_prefix_expression(),
             _ => {
                 let error = ParserError {
@@ -211,6 +198,23 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn parse_boolean_literal(&mut self) -> Option<Expr> {
+        match self.cur_token.literal.parse::<bool>() {
+            Ok(value) => {
+                let value = Literal::Boolean(value);
+                Some(Expr::Literal(value))
+            },
+            Err(_) => {
+                let error = ParserError {
+                    row: 0,
+                    column: 0,
+                    text: String::from("Could not parse the boolean value!"),
+                };
+                self.errors.push(error); None
+            }
+        }
+    }
+
     fn parse_prefix_expression(&mut self) -> Option<Expr> {
         let cur_token = self.cur_token.clone();
         self.next_token();
@@ -240,7 +244,7 @@ impl<'a> Parser<'a> {
     fn parse_infix_expression(&mut self, left: Expr) -> Option<Expr> {
         // TODO: Add an error message
         let operator = Infix::get(&self.cur_token.kind).unwrap();
-        let precedence = token_to_precedence(&self.cur_token);
+        let precedence = Precedence::from_token(&self.cur_token);
 
         self.next_token();
 
@@ -404,6 +408,33 @@ mod test {
             assert_eq!(i, &5);
         } else {
             panic!("Expect an INT expression statement!");
+        }
+    }
+
+    #[test]
+    fn test_boolean_literal_expression() {
+        let input = "true; false;";
+
+        let mut chars: Vec<char> = input.chars().collect();
+        let mut lexer = Lexer::new(input.len(), &mut chars);
+        let mut parser = Parser::new(&mut lexer);
+
+        let program = parser.parse_program();
+        expect_no_errors(&parser.errors);
+        assert_eq!(program.statements.len(), 2);
+
+        if let Stmt::Expr(Expr::Literal(Literal::Boolean(i))) = &program.statements[0] {
+            assert_eq!(i, &true);
+            assert_eq!(format!("{}", &program.statements[0]), "true;");
+        } else {
+            panic!("Expect an Boolean expression statement!");
+        }
+
+        if let Stmt::Expr(Expr::Literal(Literal::Boolean(i))) = &program.statements[1] {
+            assert_eq!(i, &false);
+            assert_eq!(format!("{}", &program.statements[1]), "false;");
+        } else {
+            panic!("Expect an Boolean expression statement!");
         }
     }
 

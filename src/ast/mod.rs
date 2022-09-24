@@ -76,12 +76,17 @@ impl fmt::Display for Infix {
 #[derive(Debug, Eq, PartialEq)]
 pub enum Literal {
     Int(i64),
+    Boolean(bool)
 }
 
 impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let str = match self {
             Literal::Int(elem) => {
+                let mut s = String::new();
+                write!(&mut s, "{}", elem).unwrap(); s
+            },
+            Literal::Boolean(elem) => {
                 let mut s = String::new();
                 write!(&mut s, "{}", elem).unwrap(); s
             },
@@ -179,6 +184,22 @@ pub enum Precedence {
     Product,
     Prefix,
     Call,
+}
+
+impl Precedence {
+    pub fn from_token(tok: &Token) -> Precedence {
+        match tok.kind {
+            EQ => Precedence::Equals,
+            NOT_EQ => Precedence::Equals,
+            LT => Precedence::LessGreater,
+            GT => Precedence::LessGreater,
+            PLUS => Precedence::Sum,
+            MINUS => Precedence::Sum,
+            SLASH => Precedence::Product,
+            ASTERISK => Precedence::Product,
+            _ => Precedence::Lowest,
+        }
+    }
 }
 
 pub struct Program {
