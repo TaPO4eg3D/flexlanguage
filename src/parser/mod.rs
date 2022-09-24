@@ -150,6 +150,7 @@ impl<'a> Parser<'a> {
             INT => self.parse_integer_literal(),
             TRUE | FALSE => self.parse_boolean_literal(),
             BANG | MINUS => self.parse_prefix_expression(),
+            LPAREN => self.parse_grouped_expression(),
             _ => {
                 let error = ParserError {
                     row: 0,
@@ -213,6 +214,15 @@ impl<'a> Parser<'a> {
                 self.errors.push(error); None
             }
         }
+    }
+
+    fn parse_grouped_expression(&mut self) -> Option<Expr> {
+        self.next_token();
+        
+        let expr = self.parse_expression(Precedence::Lowest);
+        if !self.expect_peek(RPAREN) {
+            None
+        } else { expr }
     }
 
     fn parse_prefix_expression(&mut self) -> Option<Expr> {
@@ -542,6 +552,18 @@ mod test {
             (
                 "a + b * c + d / e - f",
                 "(((a + (b * c)) + (d / e)) - f);",
+            ),
+            (
+                "true",
+                "true;",
+            ),
+            (
+                "3 > 5 == false",
+                "((3 > 5) == false);",
+            ),
+            (
+                "(5 + 5) * 2",
+                "((5 + 5) * 2);",
             )
         ];
 
