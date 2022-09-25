@@ -152,6 +152,7 @@ impl<'a> Parser<'a> {
             BANG | MINUS => self.parse_prefix_expression(),
             LPAREN => self.parse_grouped_expression(),
             IF => self.parse_if_expression(),
+            FUNC => self.parse_func_literal(),
             _ => {
                 let error = ParserError {
                     row: 0,
@@ -249,6 +250,54 @@ impl<'a> Parser<'a> {
             conseq: Box::new(conseq),
             alternative,
         })
+    }
+
+    fn parse_func_literal(&mut self) -> Option<Expr> {
+        if !self.expect_peek(LPAREN) {
+            return None;
+        }
+
+        let params = self.parse_func_params();
+
+        if !self.expect_peek(LBRACE) {
+            return None;
+        }
+
+        let body = self.parse_block_statement();
+
+        return Some(Expr::Literal(Literal::Func(params, Box::new(body))))
+    }
+
+    fn parse_func_params(&mut self) -> Vec<Ident> {
+        let mut idents = Vec::new();
+
+        if self.peek_token.kind == RPAREN {
+            self.next_token();
+            return idents;
+        }
+
+        self.next_token();
+
+        let ident = Ident(self.cur_token.literal.clone());
+        idents.push(ident);
+
+        loop {
+            if self.peek_token.kind != COMMA {
+                break;
+            }
+            self.next_token();
+            self.next_token();
+
+            let ident = Ident(self.cur_token.literal.clone());
+            idents.push(ident);
+        }
+
+        if !self.expect_peek(RPAREN) {
+            // TODO: ADD AN ERROR
+            unimplemented!();
+        }
+
+        idents
     }
 
     fn parse_block_statement(&mut self) -> Stmt {
@@ -675,6 +724,40 @@ mod test {
         } else {
             panic!("Expect to have IF Expression!")
         }
+    }
+
+    #[test]
+    fn test_function_literal_parsing() {
+        let input = "fn (x, y) {x + y}";
+
+        let mut chars: Vec<char> = input.chars().collect();
+        let mut lexer = Lexer::new(input.len(), &mut chars);
+        let mut parser = Parser::new(&mut lexer);
+
+        let program = parser.parse_program();
+        expect_no_errors(&parser.errors);
+        assert_eq!(program.statements.len(), 1);
+
+        if let Stmt::Expr(Expr::Literal(Literal::Func(params, body))) = &program.statements[0] {
+            assert_eq!(params.len(), 2);
+
+            assert_eq!(params[0].0, "x");
+            assert_eq!(params[1].0, "y");
+
+            if let Stmt::Block(stmts) = &**body {
+                assert_eq!(stmts.len(), 1);
+
+                if let Stmt::Expr(Expr::Infix(Infix::Plus, lop, rop)) = &stmts[0] {
+                    if let Expr::Ident(ident) = &**lop {
+                        assert_eq!(ident.0, "x");
+                    } else { panic!("Should be X!") }
+
+                    if let Expr::Ident(ident) = &**rop {
+                        assert_eq!(ident.0, "y");
+                    } else { panic!("Should be Y!") }
+                } else { panic!("Expect to have Infix operator in body!") }
+            } else { panic!("Expect to have Func bodya as block statement!") }
+        } else { panic!("Expect Func literal!") }
     }
 
     fn expect_no_errors(errors: &Vec<ParserError>) {

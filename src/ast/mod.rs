@@ -76,7 +76,8 @@ impl fmt::Display for Infix {
 #[derive(Debug, Eq, PartialEq)]
 pub enum Literal {
     Int(i64),
-    Boolean(bool)
+    Boolean(bool),
+    Func(Vec<Ident>, Box<Stmt>)
 }
 
 impl fmt::Display for Literal {
