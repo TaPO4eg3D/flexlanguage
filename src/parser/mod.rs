@@ -169,6 +169,9 @@ impl<'a> Parser<'a> {
             PLUS | MINUS | SLASH | ASTERISK | EQ | NOT_EQ | LT | GT => {
                 self.parse_infix_expression(left)
             },
+            LPAREN => {
+                self.parse_call_expression(left)
+            },
             _ => {
                 let error = ParserError {
                     row: 0,
@@ -368,6 +371,39 @@ impl<'a> Parser<'a> {
         };
         
         Some(Expr::Infix(operator, Box::new(left), Box::new(right)))
+    }
+
+    fn parse_call_expression(&mut self, func: Expr) -> Option<Expr> {
+        return Some(Expr::CallFunc(Box::new(func), self.parse_call_arguments()))
+    }
+
+    fn parse_call_arguments(&mut self) -> Vec<Expr> {
+        let mut args = Vec::new();
+
+        if self.peek_token.kind == RPAREN {
+            self.next_token();
+            return args;
+        }
+
+        self.next_token();
+        args.push(self.parse_expression(Precedence::Lowest).unwrap());
+
+        loop {
+            if self.peek_token.kind != COMMA {
+                break;
+            }
+
+            self.next_token();
+            self.next_token();
+
+            args.push(self.parse_expression(Precedence::Lowest).unwrap());
+        }
+
+        if !self.expect_peek(LPAREN) {
+            // TODO: Add an ERROR
+        }
+        
+        args
     }
 
     fn expect_peek(&mut self, kind: &str) -> bool {
@@ -758,6 +794,51 @@ mod test {
                 } else { panic!("Expect to have Infix operator in body!") }
             } else { panic!("Expect to have Func bodya as block statement!") }
         } else { panic!("Expect Func literal!") }
+    }
+
+    #[test]
+    fn test_call_expressions() {
+        let input = "add(1, 2 * 3, 4 + 5)";
+
+        let mut chars: Vec<char> = input.chars().collect();
+        let mut lexer = Lexer::new(input.len(), &mut chars);
+        let mut parser = Parser::new(&mut lexer);
+
+        let program = parser.parse_program();
+        expect_no_errors(&parser.errors);
+        assert_eq!(program.statements.len(), 1);
+
+        if let Stmt::Expr(Expr::CallFunc(func, args)) = &program.statements[0] {
+            if let Expr::Ident(ident) = &**func {
+                assert_eq!(ident.0, "add");
+            } else { panic!("Expect func to be ADD!") }
+
+            assert_eq!(args.len(), 3);
+
+            if let Expr::Literal(Literal::Int(i)) = &args[0] {
+                assert_eq!(i, &1);
+            } else { panic!("Expect first arg to Int literal!") }
+
+            if let Expr::Infix(Infix::Asterisk, lop, rop) = &args[1] {
+                if let Expr::Literal(Literal::Int(i)) = &**lop {
+                    assert_eq!(i, &2);
+                } else { panic!("Expect Int literal") }
+
+                if let Expr::Literal(Literal::Int(i)) = &**rop {
+                    assert_eq!(i, &3);
+                } else { panic!("Expect Int literal") }
+            } else { panic!("Expect second arg to be infix!") }
+
+            if let Expr::Infix(Infix::Plus, lop, rop) = &args[2] {
+                if let Expr::Literal(Literal::Int(i)) = &**lop {
+                    assert_eq!(i, &4);
+                } else { panic!("Expect Int literal") }
+
+                if let Expr::Literal(Literal::Int(i)) = &**rop {
+                    assert_eq!(i, &5);
+                } else { panic!("Expect Int literal") }
+            } else { panic!("Expect third arg to be infix!") }
+        } else { panic!("Expect func call!") }
     }
 
     fn expect_no_errors(errors: &Vec<ParserError>) {

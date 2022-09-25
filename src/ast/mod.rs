@@ -108,7 +108,8 @@ pub enum Expr {
         condition: Box<Expr>,
         conseq: Box<Stmt>,
         alternative: Option<Box<Stmt>>,
-    }
+    },
+    CallFunc(Box<Expr>, Vec<Expr>),
 }
 
 impl fmt::Display for Expr {
@@ -215,6 +216,7 @@ impl Precedence {
             MINUS => Precedence::Sum,
             SLASH => Precedence::Product,
             ASTERISK => Precedence::Product,
+            LPAREN => Precedence::Call,
             _ => Precedence::Lowest,
         }
     }
