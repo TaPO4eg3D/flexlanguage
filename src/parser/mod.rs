@@ -93,24 +93,28 @@ impl<'a> Parser<'a> {
             return None;
         }
 
-        // TODO: we're skipping until semilicon
-        while self.cur_token.kind != SEMICOLON {
+        self.next_token();
+        
+        let value = self.parse_expression(Precedence::Lowest);
+
+        if self.peek_token.kind == SEMICOLON {
             self.next_token();
         }
 
         let ident = Ident(cur_token.literal);
-        Some(Stmt::Let(ident, Expr::Empty))
+        Some(Stmt::Let(ident, value.unwrap()))
     }
 
     fn parse_return_statement(&mut self) -> Option<Stmt> {
         self.next_token();
 
-        // TODO: we're skipping until semilicon
-        while self.cur_token.kind != SEMICOLON {
+        let value = self.parse_expression(Precedence::Lowest);
+
+        if self.peek_token.kind == SEMICOLON {
             self.next_token();
         }
 
-        Some(Stmt::Return(Expr::Empty))
+        Some(Stmt::Return(value.unwrap()))
     }
 
     fn parse_expression_statement(&mut self) -> Option<Stmt> {
@@ -470,20 +474,19 @@ mod test {
         expect_no_errors(&parser.errors);
         assert_eq!(program.statements.len(), 2);
 
-        let expected_identifiers = vec![
-            String::from("x"),
-            String::from("foobar"),
+        let cases = vec![
+            (String::from("x"), 5),
+            (String::from("foobar"), 228),
         ];
 
-        for (i, expect_ident) in expected_identifiers.iter().enumerate() {
+        for (i, (expect_ident, expect_result)) in cases.iter().enumerate() {
             let stmt = &program.statements[i];
             
             if let Stmt::Let(ident, expr) = stmt {
                 assert_eq!(&ident.0, expect_ident);
-                // TODO: Compare value
                 assert_eq!(
                     format!("{}", stmt),
-                    format!("let {} = ;", expect_ident)
+                    format!("let {} = {};", expect_ident, expect_result)
                 );
             } else {
                 panic!("Expect to have only LET statements");
@@ -505,14 +508,8 @@ mod test {
         let program = parser.parse_program();
         assert_eq!(program.statements.len(), 2);
 
-        for stmt in program.statements {
-            if let Stmt::Return(Expr::Empty) = stmt {
-                assert_eq!(format!("{}", stmt), "return ;");
-                // TODO: Should be integer literal
-            } else {
-                panic!("Expect Return Statement!");
-            }
-        }
+        assert_eq!(format!("{}", &program.statements[0]), "return 5;");
+        assert_eq!(format!("{}", &program.statements[1]), "return 200;");
     }
 
     #[test]
