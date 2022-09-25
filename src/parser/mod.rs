@@ -151,6 +151,7 @@ impl<'a> Parser<'a> {
             TRUE | FALSE => self.parse_boolean_literal(),
             BANG | MINUS => self.parse_prefix_expression(),
             LPAREN => self.parse_grouped_expression(),
+            IF => self.parse_if_expression(),
             _ => {
                 let error = ParserError {
                     row: 0,
@@ -223,6 +224,52 @@ impl<'a> Parser<'a> {
         if !self.expect_peek(RPAREN) {
             None
         } else { expr }
+    }
+
+    fn parse_if_expression(&mut self) -> Option<Expr> {
+        if !self.expect_peek(LPAREN) { return None; }
+
+        self.next_token();
+        let condition = self.parse_expression(Precedence::Lowest);
+        if !self.expect_peek(RPAREN) { return None; }
+        if !self.expect_peek(LBRACE) { return None; }
+        
+        let conseq = self.parse_block_statement();
+        let mut alternative: Option<Box<Stmt>> = None;
+
+        if self.peek_token.kind == ELSE {
+            self.next_token();
+
+            if !self.expect_peek(LBRACE) { return None; }
+            alternative = Some(Box::new(self.parse_block_statement()));
+        }
+
+        Some(Expr::IfExpr {
+            condition: Box::new(condition.unwrap()),
+            conseq: Box::new(conseq),
+            alternative,
+        })
+    }
+
+    fn parse_block_statement(&mut self) -> Stmt {
+        let mut statements: Vec<Stmt> = Vec::new();
+        self.next_token();
+
+        loop {
+            if self.cur_token.kind == RBRACE ||
+                self.cur_token.kind == EOF {
+                break;
+            }
+
+            match self.parse_statement() {
+                Some(stmt) => statements.push(stmt),
+                _ => {}
+            };
+
+            self.next_token();
+        }
+
+        Stmt::Block(statements)
     }
 
     fn parse_prefix_expression(&mut self) -> Option<Expr> {
@@ -582,6 +629,51 @@ mod test {
                 format!("{}", &program.statements[0]),
                 expect,
             );
+        }
+    }
+
+    #[test]
+    fn test_if_expressions() {
+        let input = "if (x < y) { x } else { y }";
+
+        let mut chars: Vec<char> = input.chars().collect();
+        let mut lexer = Lexer::new(input.len(), &mut chars);
+        let mut parser = Parser::new(&mut lexer);
+
+        let program = parser.parse_program();
+        expect_no_errors(&parser.errors);
+        assert_eq!(program.statements.len(), 1);
+
+        if let Stmt::Expr(Expr::IfExpr { condition, conseq, alternative }) = &program.statements[0] {
+            if let Expr::Infix(Infix::Lt, lexpr, rexpr) = &**condition {
+                if let Expr::Ident(ident) = &**lexpr {
+                    assert_eq!(ident.0, "x")
+                } else { panic!("Expect left operand to be Ident of X") }
+
+                if let Expr::Ident(ident) = &**rexpr {
+                    assert_eq!(ident.0, "y")
+                } else { panic!("Expect right operand to be Ident of Y") }
+            } else {
+                panic!("Expect condition to be Infix!")
+            }
+
+            if let Stmt::Block(conseq_stmts) = &**conseq {
+                assert_eq!(conseq_stmts.len(), 1);
+
+                if let Stmt::Expr(Expr::Ident(ident)) = &conseq_stmts[0] {
+                    assert_eq!(ident.0, "x")
+                } else { panic!("Expect to first stmt of conseq be Ident of X") }
+            } else { panic!("Expect conseq to be a block statement!") }
+
+            if let Stmt::Block(conseq_stmts) = &**alternative.as_ref().unwrap() {
+                assert_eq!(conseq_stmts.len(), 1);
+
+                if let Stmt::Expr(Expr::Ident(ident)) = &conseq_stmts[0] {
+                    assert_eq!(ident.0, "y")
+                } else { panic!("Expect to first stmt of alternative be Ident of Y") }
+            }
+        } else {
+            panic!("Expect to have IF Expression!")
         }
     }
 

@@ -103,6 +103,11 @@ pub enum Expr {
     Literal(Literal),
     Prefix(Prefix, Box<Expr>),
     Infix(Infix, Box<Expr>, Box<Expr>),
+    IfExpr {
+        condition: Box<Expr>,
+        conseq: Box<Stmt>,
+        alternative: Option<Box<Stmt>>,
+    }
 }
 
 impl fmt::Display for Expr {
@@ -127,6 +132,17 @@ impl fmt::Display for Expr {
                     "({} {} {})",
                     lexpr, infix, rexpr,
                 ).unwrap(); s
+            },
+            Expr::IfExpr {condition, conseq, alternative} => {
+                let mut s = String::new();
+                write!(
+                    &mut s, "if ({}) {}",
+                    condition, conseq,
+                ).unwrap();
+
+                if let Some(alternative) = alternative {
+                    write!(&mut s, "else {}", alternative).unwrap();
+                }; s
             }
             _ => String::from(""),
         };
@@ -140,6 +156,7 @@ pub enum Stmt {
     Let(Ident, Expr),
     Return(Expr),
     Expr(Expr),
+    Block(Vec<Stmt>),
 }
 
 impl fmt::Display for Stmt {
