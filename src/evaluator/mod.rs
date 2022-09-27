@@ -33,6 +33,21 @@ fn eval_prefix_expression(prefix: Prefix, right: EvalObject) -> EvalObject {
     }
 }
 
+fn eval_infix_expression(infix: Infix, left: EvalObject, right: EvalObject) -> EvalObject {
+    match (left, right) {
+        (EvalObject::Int(lnum), EvalObject::Int(rnum)) => {
+            match infix {
+                Infix::Plus => EvalObject::Int(lnum + rnum),
+                Infix::Minus => EvalObject::Int(lnum - rnum),
+                Infix::Asterisk => EvalObject::Int(lnum * rnum),
+                Infix::Slash => unimplemented!(),
+                _ => EvalObject::Null,
+            }
+        },
+        _ => EvalObject::Null
+    }
+}
+
 pub fn eval(node: Node) -> EvalObject {
     match node {
         Node::Program(program) => {
@@ -51,7 +66,14 @@ pub fn eval(node: Node) -> EvalObject {
                 },
                 Expr::Prefix(prefix, pexpr) => {
                     let right = eval(Node::Expr(*pexpr));
+
                     return eval_prefix_expression(prefix, right)
+                },
+                Expr::Infix(infix, lexpr, rexpr) => {
+                    let left = eval(Node::Expr(*lexpr));
+                    let right = eval(Node::Expr(*rexpr));
+
+                    return eval_infix_expression(infix, left, right)
                 },
                 _ => unimplemented!()
             }
