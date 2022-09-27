@@ -40,8 +40,11 @@ fn eval_infix_expression(infix: Infix, left: EvalObject, right: EvalObject) -> E
                 Infix::Plus => EvalObject::Int(lnum + rnum),
                 Infix::Minus => EvalObject::Int(lnum - rnum),
                 Infix::Asterisk => EvalObject::Int(lnum * rnum),
+                Infix::Lt => EvalObject::Boolean(lnum < rnum),
+                Infix::Gt => EvalObject::Boolean(lnum > rnum),
+                Infix::Eq => EvalObject::Boolean(lnum == rnum),
+                Infix::NotEq => EvalObject::Boolean(lnum != rnum),
                 Infix::Slash => unimplemented!(),
-                _ => EvalObject::Null,
             }
         },
         _ => EvalObject::Null
@@ -170,6 +173,26 @@ mod test {
             match run_eval(input.to_string()) {
                 EvalObject::Int(i) => assert_eq!(i, expected_result, "{}", input),
                 _ => panic!("Expect an Int type!")
+            }
+        }
+    }
+
+    #[test]
+    fn test_eval_infix_boolean() {
+        let test_cases = vec![
+            ("1 > 1", false),
+            ("1 < 1", false),
+            ("1 == 1", true),
+            ("1 < 2", true),
+            ("1 > 2", false),
+            ("1 == 2", false),
+            ("1 != 2", true),
+        ];
+
+        for (input, expected_result) in test_cases {
+            match run_eval(input.to_string()) {
+                EvalObject::Boolean(b) => assert_eq!(b, expected_result, "{}", input),
+                _ => panic!("Expect a Boolean type!")
             }
         }
     }
