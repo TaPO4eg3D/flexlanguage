@@ -47,6 +47,13 @@ fn eval_infix_expression(infix: Infix, left: EvalObject, right: EvalObject) -> E
                 Infix::Slash => unimplemented!(),
             }
         },
+        (EvalObject::Boolean(lbool), EvalObject::Boolean(rbool)) => {
+            match infix {
+                Infix::Eq => EvalObject::Boolean(lbool == rbool),
+                Infix::NotEq => EvalObject::Boolean(lbool != rbool),
+                _ => EvalObject::Null,
+            }
+        }
         _ => EvalObject::Null
     }
 }
@@ -187,6 +194,12 @@ mod test {
             ("1 > 2", false),
             ("1 == 2", false),
             ("1 != 2", true),
+            ("(1 == 2) == true", false),
+            ("(1 == 1) == true", true),
+            ("(1 == 2) == false", true),
+            ("true == false", false),
+            ("true == true", true),
+            ("false == false", true),
         ];
 
         for (input, expected_result) in test_cases {
