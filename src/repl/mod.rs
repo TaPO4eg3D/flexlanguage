@@ -1,8 +1,12 @@
 use std::io;
 use std::io::prelude::*;
 
+use crate::ast::Node;
+
 use crate::lexer::Lexer;
-use crate::lexer::tokens::EOF;
+use crate::parser::Parser;
+
+use crate::evaluator::eval;
 
 const PROMPT: &str = ">> ";
 
@@ -14,15 +18,22 @@ pub fn start() {
         io::stdout().flush().unwrap();
 
         io::stdin().read_line(&mut buffer).unwrap();
+
         let mut chars = buffer.chars().collect();
-
         let mut lexer = Lexer::new(buffer.len(), &mut chars);
+        let mut parser = Parser::new(&mut lexer);
 
-        loop {
-            let tok = lexer.next_token();
-            if tok.kind == EOF { break; }
-            println!("{:?}", tok);
+        let program = parser.parse_program();
+
+        if parser.errors.len() > 0 {
+            for err in parser.errors {
+                println!("{:?}", err);
+            }
         }
+
+        let evaluated = eval(Node::Program(program));
+        println!("{}", evaluated);
+
         buffer.clear();
     }
 }

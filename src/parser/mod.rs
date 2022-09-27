@@ -4,6 +4,7 @@ use crate::lexer::tokens::*;
 
 use std::mem;
 
+#[derive(Debug)]
 pub struct ParserError {
     pub row: usize,
     pub column: usize,
