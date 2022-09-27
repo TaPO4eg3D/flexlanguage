@@ -4,18 +4,18 @@ use crate::lexer::tokens::*;
 
 use std::mem;
 
-struct ParserError {
-    row: usize,
-    column: usize,
-    text: String,
+pub struct ParserError {
+    pub row: usize,
+    pub column: usize,
+    pub text: String,
 }
 
-struct Parser<'a> {
-    l: &'a mut Lexer<'a>,
-    errors: Vec<ParserError>,
+pub struct Parser<'a> {
+    pub l: &'a mut Lexer<'a>,
+    pub errors: Vec<ParserError>,
 
-    cur_token: Token<'a>,
-    peek_token: Token<'a>,
+    pub cur_token: Token<'a>,
+    pub peek_token: Token<'a>,
 }
 
 impl<'a> Parser<'a> {

@@ -225,3 +225,9 @@ impl Precedence {
 pub struct Program {
     pub statements: Vec<Stmt>,
 }
+
+pub enum Node {
+    Stmt(Stmt),
+    Expr(Expr),
+    Program(Program),
+}
