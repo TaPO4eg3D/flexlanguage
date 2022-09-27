@@ -157,4 +157,20 @@ mod test {
             }
         }
     }
+
+    #[test]
+    fn test_eval_infix_int() {
+        let test_cases = vec![
+            ("1 + 1", 2),
+            ("4 + 2 * 2", 8),
+            ("(4 + 2) * 2", 12),
+        ];
+
+        for (input, expected_result) in test_cases {
+            match run_eval(input.to_string()) {
+                EvalObject::Int(i) => assert_eq!(i, expected_result, "{}", input),
+                _ => panic!("Expect an Int type!")
+            }
+        }
+    }
 }
