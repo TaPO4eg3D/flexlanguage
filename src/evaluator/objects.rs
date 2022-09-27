@@ -15,6 +15,9 @@ impl Display for EvalObject {
            EvalObject::Boolean(b) => {
                write!(f, "{}", b)
            },
+           EvalObject::Null => {
+               write!(f, "NULL")
+           },
            _ => unimplemented!()
        }
     }

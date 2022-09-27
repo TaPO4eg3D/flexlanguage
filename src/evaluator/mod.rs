@@ -3,6 +3,15 @@ pub mod objects;
 use objects::*;
 use crate::ast::*;
 
+fn eval_minus_expression(right: EvalObject) -> EvalObject {
+    match right {
+        EvalObject::Int(i) => {
+            EvalObject::Int(-i)
+        },
+        _ => EvalObject::Null
+    }
+}
+
 fn eval_bang_expression(right: EvalObject) -> EvalObject {
     match right {
         EvalObject::Boolean(b) => {
@@ -18,9 +27,8 @@ fn eval_bang_expression(right: EvalObject) -> EvalObject {
 
 fn eval_prefix_expression(prefix: Prefix, right: EvalObject) -> EvalObject {
     match prefix {
-        Prefix::Bang => {
-            eval_bang_expression(right)
-        },
+        Prefix::Bang => eval_bang_expression(right),
+        Prefix::Minus => eval_minus_expression(right),
         _ => unimplemented!()
     }
 }
@@ -82,6 +90,8 @@ mod test {
         let test_cases = vec![
             ("5;", 5),
             ("10;", 10),
+            ("-5;", -5),
+            ("-10;", -10),
         ];
 
         for (input, expected_result) in test_cases {
