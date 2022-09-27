@@ -1,11 +1,7 @@
 pub mod objects;
 
-use crate::ast::*;
-
-use crate::lexer::Lexer;
-use crate::parser::Parser;
-
 use objects::*;
+use crate::ast::*;
 
 pub fn eval(node: Node) -> EvalObject {
     match node {
@@ -19,7 +15,10 @@ pub fn eval(node: Node) -> EvalObject {
             match stmt {
                 Stmt::Expr(Expr::Literal(Literal::Int(i))) => {
                     return EvalObject::Int(i.try_into().unwrap());
-                }
+                },
+                Stmt::Expr(Expr::Literal(Literal::Boolean(b))) => {
+                    return EvalObject::Boolean(b);
+                },
                 _ => unimplemented!(),
             }
         }
@@ -32,6 +31,9 @@ pub fn eval(node: Node) -> EvalObject {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    use crate::lexer::Lexer;
+    use crate::parser::Parser;
 
     fn run_eval(input: String) -> EvalObject {
         let mut chars: Vec<char> = input.chars().collect();
@@ -52,6 +54,21 @@ mod test {
             match run_eval(input.to_string()) {
                 EvalObject::Int(i) => assert_eq!(i, expected_result),
                 _ => panic!("Expect an Integer type!")
+            }
+        }
+    }
+
+    #[test]
+    fn test_eval_boolean() {
+        let test_cases = vec![
+            ("true;", true),
+            ("false;", false),
+        ];
+
+        for (input, expected_result) in test_cases {
+            match run_eval(input.to_string()) {
+                EvalObject::Boolean(b) => assert_eq!(b, expected_result),
+                _ => panic!("Expect a Boolean type!")
             }
         }
     }
