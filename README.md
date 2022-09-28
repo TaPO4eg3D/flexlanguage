@@ -9,6 +9,15 @@ A toy language designed to flex
 3. Learn and have fun
 
 ## Features
+- full unicode support (thanks Rust!)
+```
+let привет = 1;
+let пока = 2;
+
+>> привет + пока;
+3
+```
+
 - variable bindings
 ```
 >> let a = 1;
