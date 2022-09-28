@@ -80,8 +80,12 @@ fn apply_function(func: EvalObject, args: Vec<EvalObject>) -> EvalObject {
             func_env.borrow_mut().set(param.0, arg);
         }
 
-        env.borrow_mut().outer = Some(Rc::clone(&func_env));
-        return eval(Node::Stmt(body), Rc::clone(&func_env));
+        func_env.borrow_mut().outer = Some(Rc::clone(&env));
+        let value = eval(Node::Stmt(body), Rc::clone(&func_env));
+
+        if let EvalObject::Return(ret) = value {
+            *ret
+        } else { value }
     } else {
         EvalObject::Error {
             kind: ErrorKind::NotFunc,
@@ -135,7 +139,7 @@ pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> EvalObject {
                     let value = env.get(&ident.0);
 
                     match value {
-                        Some(val) => return val.clone(),
+                        Some(val) => return val,
                         None => return EvalObject::Error {
                             kind: ErrorKind::UnknownIdent,
                             details: format!("{}", &ident.0),
@@ -497,6 +501,17 @@ mod test {
                         return x * 2;
                     }(5);
                 "#, 10
+            ),
+            (
+                r#"
+                    let a = fn(x) {
+                        return fn(y) {
+                            x * y;
+                        };
+                    };
+                    let b = a(10);
+                    b(2);
+                "#, 20
             )
         ];
 
