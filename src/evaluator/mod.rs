@@ -18,7 +18,10 @@ fn eval_minus_expression(right: EvalObject) -> EvalObject {
         EvalObject::Int(i) => {
             EvalObject::Int(-i)
         },
-        _ => EvalObject::Null
+        _ => EvalObject::Error {
+            kind: ErrorKind::UnknownOperator,
+            details: format!("-{} ({})", right, right.kind())
+        }
     }
 }
 
@@ -31,7 +34,7 @@ fn eval_prefix_expression(prefix: Prefix, right: EvalObject) -> EvalObject {
 }
 
 fn eval_infix_expression(infix: Infix, left: EvalObject, right: EvalObject) -> EvalObject {
-    match (left, right) {
+    match (&left, &right) {
         (EvalObject::Int(lnum), EvalObject::Int(rnum)) => {
             match infix {
                 Infix::Plus => EvalObject::Int(lnum + rnum),
@@ -48,10 +51,16 @@ fn eval_infix_expression(infix: Infix, left: EvalObject, right: EvalObject) -> E
             match infix {
                 Infix::Eq => EvalObject::Boolean(lbool == rbool),
                 Infix::NotEq => EvalObject::Boolean(lbool != rbool),
-                _ => EvalObject::Null,
+                _ => EvalObject::Error {
+                    kind: ErrorKind::UnknownOperator,
+                    details: format!("{} ({}) {} {} ({})", left, left.kind(), infix, right, right.kind()),
+                }
             }
         }
-        _ => EvalObject::Null
+        _ => EvalObject::Error {
+            kind: ErrorKind::TypeMismatch,
+            details: format!("{} ({}) {} {} ({})", left, left.kind(), infix, right, right.kind()),
+        }
     }
 }
 
@@ -63,8 +72,14 @@ pub fn eval(node: Node) -> EvalObject {
             for stmt in program.statements {
                 result = eval(Node::Stmt(stmt));
 
-                if let EvalObject::Return(result) = result {
-                    return *result;
+                match result {
+                    EvalObject::Return(return_result) => {
+                        return *return_result;
+                    },
+                    EvalObject::Error { .. } => {
+                        return result;
+                    },
+                    _ => {}
                 }
             }
 
@@ -76,9 +91,12 @@ pub fn eval(node: Node) -> EvalObject {
             for stmt in block {
                 result = eval(Node::Stmt(stmt));
 
-                // Bubble up the return statement
-                if let EvalObject::Return(_) = result {
-                    return result;
+                // Bubble up returns and errors
+                match result {
+                    EvalObject::Return(_) | EvalObject::Error { .. } => {
+                        return result;
+                    },
+                    _ => {}
                 }
             }
 
@@ -95,16 +113,32 @@ pub fn eval(node: Node) -> EvalObject {
                 Expr::Prefix(prefix, pexpr) => {
                     let right = eval(Node::Expr(*pexpr));
 
+                    if let EvalObject::Error {..} = right {
+                        return right;
+                    }
+
                     return eval_prefix_expression(prefix, right)
                 },
                 Expr::Infix(infix, lexpr, rexpr) => {
                     let left = eval(Node::Expr(*lexpr));
                     let right = eval(Node::Expr(*rexpr));
 
+                    if let EvalObject::Error {..} = left {
+                        return left;
+                    }
+
+                    if let EvalObject::Error {..} = right {
+                        return right;
+                    }
+
                     return eval_infix_expression(infix, left, right)
                 },
                 Expr::IfExpr { condition, conseq, alternative } => {
                     let rcond = eval(Node::Expr(*condition));
+
+                    if let EvalObject::Error {..} = rcond {
+                        return rcond;
+                    }
 
                     return if is_truthy(rcond) {
                         eval(Node::Stmt(*conseq))
@@ -124,6 +158,11 @@ pub fn eval(node: Node) -> EvalObject {
                 },
                 Stmt::Return(expr) => {
                     let value = eval(Node::Expr(expr));
+
+                    if let EvalObject::Error {..} = value {
+                        return value;
+                    }
+
                     return EvalObject::Return(Box::new(value));
                 },
                 _ => unimplemented!(),
@@ -271,5 +310,59 @@ mod test {
 
         let evaluated = run_eval(input.to_string());
         assert_eq!(evaluated, EvalObject::Int(10));
+    }
+
+    #[test]
+    fn test_errors() {
+        let test_cases = vec![
+            (
+                "5 + true;",
+                EvalObject::Error {
+                    kind: ErrorKind::TypeMismatch,
+                    details: format!("5 (int) + true (bool)")
+                },
+            ),
+            (
+                "5 + true; 5;",
+                EvalObject::Error {
+                    kind: ErrorKind::TypeMismatch,
+                    details: format!("5 (int) + true (bool)")
+                },
+            ),
+            (
+                "-true",
+                EvalObject::Error {
+                    kind: ErrorKind::UnknownOperator,
+                    details: format!("-true (bool)")
+                },
+            ),
+            (
+                "5; true + true; 10;",
+                EvalObject::Error {
+                    kind: ErrorKind::UnknownOperator,
+                    details: format!("true (bool) + true (bool)")
+                },
+            ),
+            (
+                r#"
+                    if (10 > 1) {
+                        if (10 > 1) {
+                            return true + true;
+                        }
+
+                        return 10 + 1;
+                    }
+                "#,
+                EvalObject::Error {
+                    kind: ErrorKind::UnknownOperator,
+                    details: format!("true (bool) + true (bool)")
+                },
+            ),
+        ];
+
+        for (input, expected_result) in test_cases {
+            let evaluated = run_eval(input.to_string());
+            assert_eq!(evaluated, expected_result, "{}", input);
+        }
     }
 }
