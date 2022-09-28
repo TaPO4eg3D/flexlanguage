@@ -4,7 +4,19 @@ use std::fmt::{Display, Formatter, Result};
 pub enum EvalObject {
     Int(i32),
     Boolean(bool),
+    Return(Box<EvalObject>),
     Null,
+}
+
+impl EvalObject {
+    pub fn kind(&self) -> &str {
+        match self {
+            EvalObject::Int(_) => "int",
+            EvalObject::Boolean(_) => "bool",
+            EvalObject::Return(_) => "return",
+            EvalObject::Null => "null",
+        }
+    }
 }
 
 impl Display for EvalObject {

@@ -58,16 +58,31 @@ fn eval_infix_expression(infix: Infix, left: EvalObject, right: EvalObject) -> E
 pub fn eval(node: Node) -> EvalObject {
     match node {
         Node::Program(program) => {
+            let mut result = EvalObject::Null;
+
             for stmt in program.statements {
-                // TODO: Change it, we need to consider all statements
-                return eval(Node::Stmt(stmt))
+                result = eval(Node::Stmt(stmt));
+
+                if let EvalObject::Return(result) = result {
+                    return *result;
+                }
             }
+
+            return result;
         },
         Node::Stmt(Stmt::Block(block)) => {
+            let mut result = EvalObject::Null;
+
             for stmt in block {
-                // TODO: Change it, we need to consider all statements
-                return eval(Node::Stmt(stmt))
+                result = eval(Node::Stmt(stmt));
+
+                // Bubble up the return statement
+                if let EvalObject::Return(_) = result {
+                    return result;
+                }
             }
+
+            return result;
         },
         Node::Expr(expr) => {
             match expr {
@@ -107,13 +122,14 @@ pub fn eval(node: Node) -> EvalObject {
                 Stmt::Expr(expr) => {
                     return eval(Node::Expr(expr))
                 },
+                Stmt::Return(expr) => {
+                    let value = eval(Node::Expr(expr));
+                    return EvalObject::Return(Box::new(value));
+                },
                 _ => unimplemented!(),
             }
         }
-        _ => panic!("Unknown Node!")
     };
-
-    return EvalObject::Int(-9999);
 }
 
 #[cfg(test)]
@@ -239,5 +255,21 @@ mod test {
             let evaluated = run_eval(input.to_string());
             assert_eq!(evaluated, expected_result);
         }
+    }
+
+    #[test]
+    fn test_return() {
+        let input = r#"
+            if (10 > 1) {
+                if (10 > 1) {
+                    return 10;
+                }
+
+                return 1;
+            }
+        "#;
+
+        let evaluated = run_eval(input.to_string());
+        assert_eq!(evaluated, EvalObject::Int(10));
     }
 }
