@@ -1,29 +1,15 @@
 pub mod objects;
+pub mod environment;
 
 use objects::*;
 use crate::ast::*;
 
-use std::collections::HashMap;
+use std::rc::Rc;
+use std::cell::RefCell;
 
-pub struct Environment {
-    store: HashMap<String, EvalObject>
-}
+use std::iter::zip;
 
-impl Environment {
-    pub fn new() -> Environment {
-        Environment {
-            store: HashMap::new(),
-        }
-    }
-
-    pub fn get(&self, name: &String) -> Option<&EvalObject> {
-        self.store.get(name)
-    }
-
-    pub fn set(&mut self, name: String, value: EvalObject) {
-        self.store.insert(name, value);
-    }
-}
+use environment::Environment;
 
 fn is_truthy(obj: EvalObject) -> bool {
     match obj {
@@ -86,13 +72,31 @@ fn eval_infix_expression(infix: Infix, left: EvalObject, right: EvalObject) -> E
     }
 }
 
-pub fn eval(node: Node, env: &mut Environment) -> EvalObject {
+fn apply_function(func: EvalObject, args: Vec<EvalObject>) -> EvalObject {
+    if let EvalObject::Function {params, body, env} = func {
+        let func_env = Rc::new(RefCell::new(Environment::new()));
+
+        for (arg, param) in zip(args, params) {
+            func_env.borrow_mut().set(param.0, arg);
+        }
+
+        env.borrow_mut().outer = Some(Rc::clone(&func_env));
+        return eval(Node::Stmt(body), Rc::clone(&func_env));
+    } else {
+        EvalObject::Error {
+            kind: ErrorKind::NotFunc,
+            details: format!("TODO: ADD DETAILS"),
+        }
+    }
+}
+
+pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> EvalObject {
     match node {
         Node::Program(program) => {
             let mut result = EvalObject::Null;
 
             for stmt in program.statements {
-                result = eval(Node::Stmt(stmt), env);
+                result = eval(Node::Stmt(stmt), Rc::clone(&env));
 
                 match result {
                     EvalObject::Return(return_result) => {
@@ -111,7 +115,7 @@ pub fn eval(node: Node, env: &mut Environment) -> EvalObject {
             let mut result = EvalObject::Null;
 
             for stmt in block {
-                result = eval(Node::Stmt(stmt), env);
+                result = eval(Node::Stmt(stmt), Rc::clone(&env));
 
                 // Bubble up returns and errors
                 match result {
@@ -127,6 +131,7 @@ pub fn eval(node: Node, env: &mut Environment) -> EvalObject {
         Node::Expr(expr) => {
             match expr {
                 Expr::Ident(ident) => {
+                    let env = env.borrow_mut();
                     let value = env.get(&ident.0);
 
                     match value {
@@ -137,6 +142,33 @@ pub fn eval(node: Node, env: &mut Environment) -> EvalObject {
                         }
                     }
                 },
+                Expr::CallFunc(func, params) => {
+                    let func = eval(Node::Expr(*func), Rc::clone(&env));
+
+                    if let EvalObject::Error {..} = func {
+                        return func;
+                    }
+
+                    let mut args = Vec::new();
+                    for param_expr in params {
+                        let value = eval(Node::Expr(param_expr), Rc::clone(&env));
+
+                        if let EvalObject::Error {..} = func {
+                            return value;
+                        }
+                        
+                        args.push(value);
+                    }
+
+                    return apply_function(func, args);
+                },
+                Expr::Literal(Literal::Func(params, body)) => {
+                    return EvalObject::Function {
+                        params,
+                        body: *body,
+                        env: Rc::clone(&env),
+                    };
+                },
                 Expr::Literal(Literal::Int(i)) => {
                     return EvalObject::Int(i.try_into().unwrap());
                 },
@@ -144,7 +176,7 @@ pub fn eval(node: Node, env: &mut Environment) -> EvalObject {
                     return EvalObject::Boolean(b);
                 },
                 Expr::Prefix(prefix, pexpr) => {
-                    let right = eval(Node::Expr(*pexpr), env);
+                    let right = eval(Node::Expr(*pexpr), Rc::clone(&env));
 
                     if let EvalObject::Error {..} = right {
                         return right;
@@ -153,8 +185,8 @@ pub fn eval(node: Node, env: &mut Environment) -> EvalObject {
                     return eval_prefix_expression(prefix, right)
                 },
                 Expr::Infix(infix, lexpr, rexpr) => {
-                    let left = eval(Node::Expr(*lexpr), env);
-                    let right = eval(Node::Expr(*rexpr), env);
+                    let left = eval(Node::Expr(*lexpr), Rc::clone(&env));
+                    let right = eval(Node::Expr(*rexpr), Rc::clone(&env));
 
                     if let EvalObject::Error {..} = left {
                         return left;
@@ -167,16 +199,16 @@ pub fn eval(node: Node, env: &mut Environment) -> EvalObject {
                     return eval_infix_expression(infix, left, right)
                 },
                 Expr::IfExpr { condition, conseq, alternative } => {
-                    let rcond = eval(Node::Expr(*condition), env);
+                    let rcond = eval(Node::Expr(*condition), Rc::clone(&env));
 
                     if let EvalObject::Error {..} = rcond {
                         return rcond;
                     }
 
                     return if is_truthy(rcond) {
-                        eval(Node::Stmt(*conseq), env)
+                        eval(Node::Stmt(*conseq), Rc::clone(&env))
                     } else if let Some(alternative) = alternative {
-                        eval(Node::Stmt(*alternative), env)
+                        eval(Node::Stmt(*alternative), Rc::clone(&env))
                     } else {
                         EvalObject::Null
                     }
@@ -187,21 +219,21 @@ pub fn eval(node: Node, env: &mut Environment) -> EvalObject {
         Node::Stmt(stmt) => {
             match stmt {
                 Stmt::Expr(expr) => {
-                    return eval(Node::Expr(expr), env)
+                    return eval(Node::Expr(expr), Rc::clone(&env))
                 },
                 Stmt::Let(indent, expr) => {
-                    let value = eval(Node::Expr(expr), env);
+                    let value = eval(Node::Expr(expr), Rc::clone(&env));
 
                     if let EvalObject::Error {..} = value {
                         return value;
                     }
 
-                    env.set(indent.0, value);
+                    (*env.borrow_mut()).set(indent.0, value);
 
                     return EvalObject::Null;
                 },
                 Stmt::Return(expr) => {
-                    let value = eval(Node::Expr(expr), env);
+                    let value = eval(Node::Expr(expr), Rc::clone(&env));
 
                     if let EvalObject::Error {..} = value {
                         return value;
@@ -226,9 +258,9 @@ mod test {
         let mut chars: Vec<char> = input.chars().collect();
         let mut lexer = Lexer::new(input.len(), &mut chars);
         let mut parser = Parser::new(&mut lexer);
-        let mut env = Environment::new();
+        let env = Rc::new(RefCell::new(Environment::new()));
 
-        return eval(Node::Program(parser.parse_program()), &mut env);
+        return eval(Node::Program(parser.parse_program()), Rc::clone(&env));
     }
 
     #[test]
@@ -423,6 +455,54 @@ mod test {
             let evaluated = run_eval(input.to_string());
             assert_eq!(evaluated, EvalObject::Int(expected_result));
         }
+    }
 
+    #[test]
+    fn test_funtion_object() {
+        let input = "fn(x) { x + 2; }";
+
+        let evaluated = run_eval(input.to_string());
+        if let EvalObject::Function { params, body, env } = evaluated {
+            assert_eq!(params[0].0, "x");
+            // TODO: Continue the test case
+        } else {
+            panic!("Expect a function!")
+        }
+    }
+
+    #[test]
+    fn test_func_application() {
+        let test_cases = vec![
+            (
+                r#"
+                    let id = fn(x) {
+                        x;
+                    };
+
+                    id(5);
+                "#,5
+            ),
+            (
+                r#"
+                    let double = fn(x) {
+                        return x * 2;
+                    };
+
+                    double(5);
+                "#, 10
+            ),
+            (
+                r#"
+                    fn(x) {
+                        return x * 2;
+                    }(5);
+                "#, 10
+            )
+        ];
+
+        for (input, expected_result) in test_cases {
+            let evaluated = run_eval(input.to_string());
+            assert_eq!(evaluated, EvalObject::Int(expected_result));
+        }
     }
 }

@@ -1,11 +1,18 @@
 use std::fmt::{Display, Formatter, Result};
 
+use crate::ast::*;
+use super::environment::Environment;
+
+use std::rc::Rc;
+use std::cell::RefCell;
+
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum ErrorKind {
     TypeMismatch,
     UnknownOp,
     UnknownIdent,
+    NotFunc,
 }
 
 impl Display for ErrorKind {
@@ -20,6 +27,9 @@ impl Display for ErrorKind {
            ErrorKind::UnknownIdent => {
                write!(f, "Identifier not found")
            },
+           ErrorKind::NotFunc => {
+               write!(f, "Not a function")
+           },
        }
     }
 }
@@ -30,6 +40,11 @@ pub enum EvalObject {
     Boolean(bool),
     Return(Box<EvalObject>),
     Error { kind: ErrorKind, details: String },
+    Function {
+        params: Vec<Ident>,
+        body: Stmt,
+        env: Rc<RefCell<Environment>>,
+    },
     Null,
 }
 
@@ -40,6 +55,7 @@ impl EvalObject {
             EvalObject::Boolean(_) => "bool",
             EvalObject::Return(_) => "return",
             EvalObject::Error { .. } => "err",
+            EvalObject::Function { .. } => "func",
             EvalObject::Null => "null",
         }
     }

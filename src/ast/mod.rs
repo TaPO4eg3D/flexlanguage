@@ -2,7 +2,7 @@ use std::fmt;
 use std::fmt::Write;
 use crate::lexer::tokens::*;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Ident(pub String);
 
 impl fmt::Display for Ident {
@@ -11,7 +11,7 @@ impl fmt::Display for Ident {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Prefix {
     Plus,
     Minus,
@@ -29,7 +29,7 @@ impl fmt::Display for Prefix {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Infix {
     Eq,
     NotEq,
@@ -73,7 +73,7 @@ impl fmt::Display for Infix {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Literal {
     Int(i64),
     Boolean(bool),
@@ -97,7 +97,7 @@ impl fmt::Display for Literal {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Expr {
     Empty,
     Ident(Ident),
@@ -152,7 +152,7 @@ impl fmt::Display for Expr {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Stmt {
     Empty,
     Let(Ident, Expr),

@@ -1,17 +1,22 @@
 use std::io;
 use std::io::prelude::*;
 
+use std::rc::Rc;
+use std::cell::RefCell;
+
 use crate::ast::Node;
 
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 
-use crate::evaluator::{eval, Environment};
+use crate::evaluator::eval;
+use crate::evaluator::environment::Environment;
 
 const PROMPT: &str = ">> ";
 
 pub fn start() {
     let mut buffer = String::new();
+    let env = Rc::new(RefCell::new(Environment::new()));
 
     loop {
         print!("{}", PROMPT);
@@ -31,8 +36,7 @@ pub fn start() {
             }
         }
 
-        let mut env = Environment::new();
-        let evaluated = eval(Node::Program(program), &mut env);
+        let evaluated = eval(Node::Program(program), Rc::clone(&env));
         println!("{}", evaluated);
 
         buffer.clear();
