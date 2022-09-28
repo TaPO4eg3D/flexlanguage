@@ -179,6 +179,9 @@ pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> EvalObject {
                 Expr::Literal(Literal::Boolean(b)) => {
                     return EvalObject::Boolean(b);
                 },
+                Expr::Literal(Literal::String(s)) => {
+                    return EvalObject::String(s);
+                },
                 Expr::Prefix(prefix, pexpr) => {
                     let right = eval(Node::Expr(*pexpr), Rc::clone(&env));
 
@@ -459,6 +462,14 @@ mod test {
             let evaluated = run_eval(input.to_string());
             assert_eq!(evaluated, EvalObject::Int(expected_result));
         }
+    }
+
+    #[test]
+    fn test_strings() {
+        let input = "\"hello world!\";";
+
+        let evaluated = run_eval(input.to_string());
+        assert_eq!(evaluated, EvalObject::String(format!("hello world!")));
     }
 
     #[test]

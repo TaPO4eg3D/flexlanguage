@@ -157,7 +157,10 @@ impl<'a> Parser<'a> {
             BANG | MINUS => self.parse_prefix_expression(),
             LPAREN => self.parse_grouped_expression(),
             IF => self.parse_if_expression(),
-            FUNC => self.parse_func_literal(),
+            STRING => Some(
+                Expr::Literal(Literal::String(self.cur_token.literal.clone())),
+            ),
+            FUNCTION => self.parse_func_literal(),
             _ => {
                 let error = ParserError {
                     row: 0,
@@ -404,7 +407,7 @@ impl<'a> Parser<'a> {
             args.push(self.parse_expression(Precedence::Lowest).unwrap());
         }
 
-        if !self.expect_peek(LPAREN) {
+        if !self.expect_peek(RPAREN) {
             // TODO: Add an ERROR
         }
         
@@ -837,6 +840,24 @@ mod test {
                 } else { panic!("Expect Int literal") }
             } else { panic!("Expect third arg to be infix!") }
         } else { panic!("Expect func call!") }
+    }
+
+    #[test]
+    fn test_string_literal_expressions() {
+        let input = "\"hello world!\";";
+
+        let mut chars: Vec<char> = input.chars().collect();
+        let mut lexer = Lexer::new(input.len(), &mut chars);
+        let mut parser = Parser::new(&mut lexer);
+
+        let program = parser.parse_program();
+        expect_no_errors(&parser.errors);
+        assert_eq!(program.statements.len(), 1);
+
+        assert_eq!(
+            program.statements[0],
+            Stmt::Expr(Expr::Literal(Literal::String(format!("hello world!")))),
+        );
     }
 
     fn expect_no_errors(errors: &Vec<ParserError>) {

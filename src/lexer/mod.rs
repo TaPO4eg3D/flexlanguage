@@ -62,6 +62,7 @@ impl<'a> Lexer<'a> {
             ',' => Token{ kind: COMMA, literal },
             '{' => Token{ kind: LBRACE, literal },
             '}' => Token{ kind: RBRACE, literal },
+            '"' => Token{ kind: STRING, literal: self.read_string() },
             _ => {
                 if is_letter(self.ch) {
                     let literal = self.read_identifier();
@@ -120,6 +121,20 @@ impl<'a> Lexer<'a> {
         let pos = self.position;
         while is_letter(self.ch) {
             self.read_char();
+        }
+
+        self.input[pos..self.position].into_iter().collect()
+    }
+
+    fn read_string(&mut self) -> String {
+        let pos = self.position + 1;
+
+        loop {
+            self.read_char();
+
+            if self.ch == '"' || self.ch == (0 as char) {
+                break;
+            }
         }
 
         self.input[pos..self.position].into_iter().collect()
@@ -209,6 +224,8 @@ mod tests {
 
             10 == 10;
             10 != 9;
+            "test";
+            "test 2";
         "#;
 
         let expected_tokens = vec![
@@ -499,6 +516,22 @@ mod tests {
             Token {
                 kind: INT,
                 literal: String::from("9"),
+            },
+            Token {
+                kind: SEMICOLON,
+                literal: String::from(";"),
+            },
+            Token {
+                kind: STRING,
+                literal: String::from("test"),
+            },
+            Token {
+                kind: SEMICOLON,
+                literal: String::from(";"),
+            },
+            Token {
+                kind: STRING,
+                literal: String::from("test 2"),
             },
             Token {
                 kind: SEMICOLON,

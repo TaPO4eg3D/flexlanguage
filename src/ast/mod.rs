@@ -77,6 +77,7 @@ impl fmt::Display for Infix {
 pub enum Literal {
     Int(i64),
     Boolean(bool),
+    String(String),
     Func(Vec<Ident>, Box<Stmt>)
 }
 

@@ -39,6 +39,7 @@ pub enum EvalObject {
     Int(i32),
     Boolean(bool),
     Return(Box<EvalObject>),
+    String(String),
     Error { kind: ErrorKind, details: String },
     Function {
         params: Vec<Ident>,
@@ -53,6 +54,7 @@ impl EvalObject {
         match self {
             EvalObject::Int(_) => "int",
             EvalObject::Boolean(_) => "bool",
+            EvalObject::String(_) => "string",
             EvalObject::Return(_) => "return",
             EvalObject::Error { .. } => "err",
             EvalObject::Function { .. } => "func",

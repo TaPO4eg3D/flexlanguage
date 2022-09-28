@@ -47,6 +47,8 @@ pub const IF: &str = "IF";
 pub const ELSE: &str = "ELSE";
 pub const RETURN: &str = "RETURN";
 
+pub const STRING: &str = "STRING";
+
 pub static KEYWORDS: phf::Map<&'static str, &'static str> = phf_map! {
     "fn" => FUNCTION,
     "let" => LET,
