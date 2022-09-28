@@ -72,6 +72,9 @@ impl Display for EvalObject {
            EvalObject::Boolean(b) => {
                write!(f, "{}", b)
            },
+           EvalObject::String(s) => {
+               write!(f, "{}", s)
+           },
            EvalObject::Error { kind, details } => {
                write!(f, "{}: {}", kind, details)
            },

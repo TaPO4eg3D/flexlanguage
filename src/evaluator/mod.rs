@@ -64,7 +64,16 @@ fn eval_infix_expression(infix: Infix, left: EvalObject, right: EvalObject) -> E
                     details: format!("{} ({}) {} {} ({})", left, left.kind(), infix, right, right.kind()),
                 }
             }
-        }
+        },
+        (EvalObject::String(s1), EvalObject::String(s2)) => {
+            match infix {
+                Infix::Plus => EvalObject::String(format!("{}{}", s1, s2)),
+                _ => EvalObject::Error {
+                    kind: ErrorKind::UnknownOp,
+                    details: format!("{} ({}) {} {} ({})", left, left.kind(), infix, right, right.kind()),
+                }
+            }
+        },
         _ => EvalObject::Error {
             kind: ErrorKind::TypeMismatch,
             details: format!("{} ({}) {} {} ({})", left, left.kind(), infix, right, right.kind()),
@@ -466,10 +475,15 @@ mod test {
 
     #[test]
     fn test_strings() {
-        let input = "\"hello world!\";";
+        let test_cases = vec![
+            ("\"hello world!\"", format!("hello world!")),
+            ("\"hello world!\" + \" hi!\"", format!("hello world! hi!")),
+        ];
 
-        let evaluated = run_eval(input.to_string());
-        assert_eq!(evaluated, EvalObject::String(format!("hello world!")));
+        for (input, expected_result) in test_cases {
+            let evaluated = run_eval(input.to_string());
+            assert_eq!(evaluated, EvalObject::String(expected_result));
+        }
     }
 
     #[test]

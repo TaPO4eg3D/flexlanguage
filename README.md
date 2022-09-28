@@ -47,6 +47,14 @@ let a = fn(x) {
 >> a(10)(5);
 50
 ```
+- strings and operations on them
+```
+let a = "hello";
+let b = " world";
+
+>> a + b + "!";
+"hello world!"
+```
 
 
 ## TODO
