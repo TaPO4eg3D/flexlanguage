@@ -64,7 +64,7 @@ impl<'a> Lexer<'a> {
             '}' => Token{ kind: RBRACE, literal },
             '"' => Token{ kind: STRING, literal: self.read_string() },
             _ => {
-                if is_letter(self.ch) {
+                if self.ch.is_alphabetic() {
                     let literal = self.read_identifier();
                     let kind = match KEYWORDS.get(&literal) {
                         Some(kw) => kw,
@@ -75,7 +75,7 @@ impl<'a> Lexer<'a> {
                         kind,
                         literal,
                     }
-                } else if is_digit(self.ch) {
+                } else if self.ch.is_digit(10) {
                     let literal = self.read_number();
                     return Token {
                         kind: INT,
@@ -110,7 +110,7 @@ impl<'a> Lexer<'a> {
     fn read_number(&mut self) -> String {
         // TODO: Squash read_number and read_identifier
         let pos = self.position;
-        while is_digit(self.ch) {
+        while self.ch.is_digit(10) {
             self.read_char();
         }
 
@@ -119,7 +119,7 @@ impl<'a> Lexer<'a> {
 
     fn read_identifier(&mut self) -> String {
         let pos = self.position;
-        while is_letter(self.ch) {
+        while self.ch.is_alphabetic() {
             self.read_char();
         }
 
@@ -155,53 +155,9 @@ impl<'a> Lexer<'a> {
     }
 }
 
-fn is_letter(ch: char) -> bool {
-    'a' <= ch && ch <= 'z'
-        || 'A' <= ch && ch <= 'Z'
-        || ch == '_'
-}
-
-fn is_digit(ch: char) -> bool {
-    '0' <= ch && ch <= '9'
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_is_letter() {
-        for ch in 'a'..'z' {
-            assert!(is_letter(ch));
-        }
-        for ch in 'A'..'Z' {
-            assert!(is_letter(ch));
-        }
-
-        for ch in '0'..'9' {
-            assert!(!is_letter(ch));
-        }
-
-        assert!(is_letter('_'));
-        assert!(!is_letter(' '));
-    }
-
-    #[test]
-    fn test_is_digit() {
-        for ch in 'a'..'z' {
-            assert!(!is_digit(ch));
-        }
-        for ch in 'A'..'Z' {
-            assert!(!is_digit(ch));
-        }
-
-        for ch in '0'..'9' {
-            assert!(is_digit(ch));
-        }
-
-        assert!(!is_digit('_'));
-        assert!(!is_digit(' '));
-    }
 
     #[test]
     fn test_nex_token() {

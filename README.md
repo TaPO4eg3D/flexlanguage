@@ -66,6 +66,7 @@ let a = "hi! ";
 
 ## TODO
 
+- [ ] Extend standart library
 - [ ] More friendly errors handling
 - [ ] JIT Compiler
 - [ ] Comments
