@@ -1,10 +1,11 @@
 use std::fmt::{Display, Formatter, Result};
 
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum ErrorKind {
     TypeMismatch,
-    UnknownOperator,
+    UnknownOp,
+    UnknownIdent,
 }
 
 impl Display for ErrorKind {
@@ -13,14 +14,17 @@ impl Display for ErrorKind {
            ErrorKind::TypeMismatch => {
                write!(f, "Type Mismatch")
            },
-           ErrorKind::UnknownOperator => {
+           ErrorKind::UnknownOp => {
                write!(f, "Unknown Operator")
+           },
+           ErrorKind::UnknownIdent => {
+               write!(f, "Identifier not found")
            },
        }
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum EvalObject {
     Int(i32),
     Boolean(bool),

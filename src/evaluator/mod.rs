@@ -3,6 +3,28 @@ pub mod objects;
 use objects::*;
 use crate::ast::*;
 
+use std::collections::HashMap;
+
+pub struct Environment {
+    store: HashMap<String, EvalObject>
+}
+
+impl Environment {
+    pub fn new() -> Environment {
+        Environment {
+            store: HashMap::new(),
+        }
+    }
+
+    pub fn get(&self, name: &String) -> Option<&EvalObject> {
+        self.store.get(name)
+    }
+
+    pub fn set(&mut self, name: String, value: EvalObject) {
+        self.store.insert(name, value);
+    }
+}
+
 fn is_truthy(obj: EvalObject) -> bool {
     match obj {
         EvalObject::Int(i) => {
@@ -19,7 +41,7 @@ fn eval_minus_expression(right: EvalObject) -> EvalObject {
             EvalObject::Int(-i)
         },
         _ => EvalObject::Error {
-            kind: ErrorKind::UnknownOperator,
+            kind: ErrorKind::UnknownOp,
             details: format!("-{} ({})", right, right.kind())
         }
     }
@@ -52,7 +74,7 @@ fn eval_infix_expression(infix: Infix, left: EvalObject, right: EvalObject) -> E
                 Infix::Eq => EvalObject::Boolean(lbool == rbool),
                 Infix::NotEq => EvalObject::Boolean(lbool != rbool),
                 _ => EvalObject::Error {
-                    kind: ErrorKind::UnknownOperator,
+                    kind: ErrorKind::UnknownOp,
                     details: format!("{} ({}) {} {} ({})", left, left.kind(), infix, right, right.kind()),
                 }
             }
@@ -64,13 +86,13 @@ fn eval_infix_expression(infix: Infix, left: EvalObject, right: EvalObject) -> E
     }
 }
 
-pub fn eval(node: Node) -> EvalObject {
+pub fn eval(node: Node, env: &mut Environment) -> EvalObject {
     match node {
         Node::Program(program) => {
             let mut result = EvalObject::Null;
 
             for stmt in program.statements {
-                result = eval(Node::Stmt(stmt));
+                result = eval(Node::Stmt(stmt), env);
 
                 match result {
                     EvalObject::Return(return_result) => {
@@ -89,7 +111,7 @@ pub fn eval(node: Node) -> EvalObject {
             let mut result = EvalObject::Null;
 
             for stmt in block {
-                result = eval(Node::Stmt(stmt));
+                result = eval(Node::Stmt(stmt), env);
 
                 // Bubble up returns and errors
                 match result {
@@ -104,6 +126,17 @@ pub fn eval(node: Node) -> EvalObject {
         },
         Node::Expr(expr) => {
             match expr {
+                Expr::Ident(ident) => {
+                    let value = env.get(&ident.0);
+
+                    match value {
+                        Some(val) => return val.clone(),
+                        None => return EvalObject::Error {
+                            kind: ErrorKind::UnknownIdent,
+                            details: format!("{}", &ident.0),
+                        }
+                    }
+                },
                 Expr::Literal(Literal::Int(i)) => {
                     return EvalObject::Int(i.try_into().unwrap());
                 },
@@ -111,7 +144,7 @@ pub fn eval(node: Node) -> EvalObject {
                     return EvalObject::Boolean(b);
                 },
                 Expr::Prefix(prefix, pexpr) => {
-                    let right = eval(Node::Expr(*pexpr));
+                    let right = eval(Node::Expr(*pexpr), env);
 
                     if let EvalObject::Error {..} = right {
                         return right;
@@ -120,8 +153,8 @@ pub fn eval(node: Node) -> EvalObject {
                     return eval_prefix_expression(prefix, right)
                 },
                 Expr::Infix(infix, lexpr, rexpr) => {
-                    let left = eval(Node::Expr(*lexpr));
-                    let right = eval(Node::Expr(*rexpr));
+                    let left = eval(Node::Expr(*lexpr), env);
+                    let right = eval(Node::Expr(*rexpr), env);
 
                     if let EvalObject::Error {..} = left {
                         return left;
@@ -134,16 +167,16 @@ pub fn eval(node: Node) -> EvalObject {
                     return eval_infix_expression(infix, left, right)
                 },
                 Expr::IfExpr { condition, conseq, alternative } => {
-                    let rcond = eval(Node::Expr(*condition));
+                    let rcond = eval(Node::Expr(*condition), env);
 
                     if let EvalObject::Error {..} = rcond {
                         return rcond;
                     }
 
                     return if is_truthy(rcond) {
-                        eval(Node::Stmt(*conseq))
+                        eval(Node::Stmt(*conseq), env)
                     } else if let Some(alternative) = alternative {
-                        eval(Node::Stmt(*alternative))
+                        eval(Node::Stmt(*alternative), env)
                     } else {
                         EvalObject::Null
                     }
@@ -154,10 +187,21 @@ pub fn eval(node: Node) -> EvalObject {
         Node::Stmt(stmt) => {
             match stmt {
                 Stmt::Expr(expr) => {
-                    return eval(Node::Expr(expr))
+                    return eval(Node::Expr(expr), env)
+                },
+                Stmt::Let(indent, expr) => {
+                    let value = eval(Node::Expr(expr), env);
+
+                    if let EvalObject::Error {..} = value {
+                        return value;
+                    }
+
+                    env.set(indent.0, value);
+
+                    return EvalObject::Null;
                 },
                 Stmt::Return(expr) => {
-                    let value = eval(Node::Expr(expr));
+                    let value = eval(Node::Expr(expr), env);
 
                     if let EvalObject::Error {..} = value {
                         return value;
@@ -182,8 +226,9 @@ mod test {
         let mut chars: Vec<char> = input.chars().collect();
         let mut lexer = Lexer::new(input.len(), &mut chars);
         let mut parser = Parser::new(&mut lexer);
+        let mut env = Environment::new();
 
-        return eval(Node::Program(parser.parse_program()));
+        return eval(Node::Program(parser.parse_program()), &mut env);
     }
 
     #[test]
@@ -332,14 +377,14 @@ mod test {
             (
                 "-true",
                 EvalObject::Error {
-                    kind: ErrorKind::UnknownOperator,
+                    kind: ErrorKind::UnknownOp,
                     details: format!("-true (bool)")
                 },
             ),
             (
                 "5; true + true; 10;",
                 EvalObject::Error {
-                    kind: ErrorKind::UnknownOperator,
+                    kind: ErrorKind::UnknownOp,
                     details: format!("true (bool) + true (bool)")
                 },
             ),
@@ -354,7 +399,7 @@ mod test {
                     }
                 "#,
                 EvalObject::Error {
-                    kind: ErrorKind::UnknownOperator,
+                    kind: ErrorKind::UnknownOp,
                     details: format!("true (bool) + true (bool)")
                 },
             ),
@@ -364,5 +409,20 @@ mod test {
             let evaluated = run_eval(input.to_string());
             assert_eq!(evaluated, expected_result, "{}", input);
         }
+    }
+
+    #[test]
+    fn test_let_statements() {
+        let test_cases = vec![
+            ("let a = 5; a", 5),
+            ("let a = 6 * 5; a", 30),
+            ("let a = 5; let b = a + 1; b", 6),
+        ];
+
+        for (input, expected_result) in test_cases {
+            let evaluated = run_eval(input.to_string());
+            assert_eq!(evaluated, EvalObject::Int(expected_result));
+        }
+
     }
 }

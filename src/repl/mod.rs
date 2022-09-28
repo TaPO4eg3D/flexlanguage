@@ -6,7 +6,7 @@ use crate::ast::Node;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 
-use crate::evaluator::eval;
+use crate::evaluator::{eval, Environment};
 
 const PROMPT: &str = ">> ";
 
@@ -31,7 +31,8 @@ pub fn start() {
             }
         }
 
-        let evaluated = eval(Node::Program(program));
+        let mut env = Environment::new();
+        let evaluated = eval(Node::Program(program), &mut env);
         println!("{}", evaluated);
 
         buffer.clear();
