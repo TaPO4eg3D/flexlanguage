@@ -1,5 +1,6 @@
 use std::fmt::{Display, Formatter, Result};
 
+#[derive(Debug, Eq, PartialEq)]
 pub enum EvalObject {
     Int(i32),
     Boolean(bool),

@@ -3,6 +3,16 @@ pub mod objects;
 use objects::*;
 use crate::ast::*;
 
+fn is_truthy(obj: EvalObject) -> bool {
+    match obj {
+        EvalObject::Int(i) => {
+            if i == 0 { false } else { true }
+        }
+        EvalObject::Boolean(b) => b,
+        _ => false
+    }
+}
+
 fn eval_minus_expression(right: EvalObject) -> EvalObject {
     match right {
         EvalObject::Int(i) => {
@@ -12,22 +22,9 @@ fn eval_minus_expression(right: EvalObject) -> EvalObject {
     }
 }
 
-fn eval_bang_expression(right: EvalObject) -> EvalObject {
-    match right {
-        EvalObject::Boolean(b) => {
-            match b {
-                true => EvalObject::Boolean(false),
-                false => EvalObject::Boolean(true)
-            }
-        },
-        EvalObject::Null => EvalObject::Boolean(true),
-        _ => EvalObject::Boolean(false)
-    }
-}
-
 fn eval_prefix_expression(prefix: Prefix, right: EvalObject) -> EvalObject {
     match prefix {
-        Prefix::Bang => eval_bang_expression(right),
+        Prefix::Bang => EvalObject::Boolean(!is_truthy(right)),
         Prefix::Minus => eval_minus_expression(right),
         _ => unimplemented!()
     }
@@ -62,7 +59,13 @@ pub fn eval(node: Node) -> EvalObject {
     match node {
         Node::Program(program) => {
             for stmt in program.statements {
-                // TODO: Change it
+                // TODO: Change it, we need to consider all statements
+                return eval(Node::Stmt(stmt))
+            }
+        },
+        Node::Stmt(Stmt::Block(block)) => {
+            for stmt in block {
+                // TODO: Change it, we need to consider all statements
                 return eval(Node::Stmt(stmt))
             }
         },
@@ -84,6 +87,17 @@ pub fn eval(node: Node) -> EvalObject {
                     let right = eval(Node::Expr(*rexpr));
 
                     return eval_infix_expression(infix, left, right)
+                },
+                Expr::IfExpr { condition, conseq, alternative } => {
+                    let rcond = eval(Node::Expr(*condition));
+
+                    return if is_truthy(rcond) {
+                        eval(Node::Stmt(*conseq))
+                    } else if let Some(alternative) = alternative {
+                        eval(Node::Stmt(*alternative))
+                    } else {
+                        EvalObject::Null
+                    }
                 },
                 _ => unimplemented!()
             }
@@ -207,6 +221,23 @@ mod test {
                 EvalObject::Boolean(b) => assert_eq!(b, expected_result, "{}", input),
                 _ => panic!("Expect a Boolean type!")
             }
+        }
+    }
+
+    #[test]
+    fn test_eval_if_expressions() {
+        let test_cases = vec![
+            ("if (true) { 10; }", EvalObject::Int(10)),
+            ("if (false) { 10; }", EvalObject::Null),
+            ("if (1) { 10; }", EvalObject::Int(10)),
+            ("if (1 < 2) { 10; }", EvalObject::Int(10)),
+            ("if (1 > 2) { 10; }", EvalObject::Null),
+            ("if (1 > 2) { 10; } else { 20; }", EvalObject::Int(20)),
+        ];
+
+        for (input, expected_result) in test_cases {
+            let evaluated = run_eval(input.to_string());
+            assert_eq!(evaluated, expected_result);
         }
     }
 }
