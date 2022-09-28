@@ -49,11 +49,18 @@ let a = fn(x) {
 ```
 - strings and operations on them
 ```
+// Concantination
 let a = "hello";
 let b = " world";
 
 >> a + b + "!";
 "hello world!"
+
+// String repeat
+let a = "hi! ";
+
+>> a * 2;
+"hi! hi! "
 ```
 
 
@@ -61,4 +68,5 @@ let b = " world";
 
 - [ ] More friendly errors handling
 - [ ] JIT Compiler
+- [ ] Comments
 - [ ] LOOPS!!! For Gods sake

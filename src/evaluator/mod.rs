@@ -42,6 +42,7 @@ fn eval_prefix_expression(prefix: Prefix, right: EvalObject) -> EvalObject {
 }
 
 fn eval_infix_expression(infix: Infix, left: EvalObject, right: EvalObject) -> EvalObject {
+    // TODO: Generalize errors
     match (&left, &right) {
         (EvalObject::Int(lnum), EvalObject::Int(rnum)) => {
             match infix {
@@ -68,6 +69,15 @@ fn eval_infix_expression(infix: Infix, left: EvalObject, right: EvalObject) -> E
         (EvalObject::String(s1), EvalObject::String(s2)) => {
             match infix {
                 Infix::Plus => EvalObject::String(format!("{}{}", s1, s2)),
+                _ => EvalObject::Error {
+                    kind: ErrorKind::UnknownOp,
+                    details: format!("{} ({}) {} {} ({})", left, left.kind(), infix, right, right.kind()),
+                }
+            }
+        },
+        (EvalObject::String(s1), EvalObject::Int(n)) => {
+            match infix {
+                Infix::Asterisk => EvalObject::String(format!("{}", s1.repeat(*n as usize))),
                 _ => EvalObject::Error {
                     kind: ErrorKind::UnknownOp,
                     details: format!("{} ({}) {} {} ({})", left, left.kind(), infix, right, right.kind()),
@@ -478,6 +488,7 @@ mod test {
         let test_cases = vec![
             ("\"hello world!\"", format!("hello world!")),
             ("\"hello world!\" + \" hi!\"", format!("hello world! hi!")),
+            ("\"hi! \" * 2", format!("hi! hi! ")),
         ];
 
         for (input, expected_result) in test_cases {
