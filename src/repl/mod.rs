@@ -11,12 +11,17 @@ use crate::parser::Parser;
 
 use crate::evaluator::eval;
 use crate::evaluator::environment::Environment;
+use crate::evaluator::builtin::construct_builtins;
 
 const PROMPT: &str = ">> ";
 
 pub fn start() {
     let mut buffer = String::new();
     let env = Rc::new(RefCell::new(Environment::new()));
+    env.borrow_mut().outer = Some(Rc::new(RefCell::new(Environment {
+        store: construct_builtins(),
+        outer: None,
+    })));
 
     loop {
         print!("{}", PROMPT);

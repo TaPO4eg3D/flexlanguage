@@ -13,6 +13,7 @@ pub enum ErrorKind {
     UnknownOp,
     UnknownIdent,
     NotFunc,
+    WrongArgNumber,
 }
 
 impl Display for ErrorKind {
@@ -26,6 +27,9 @@ impl Display for ErrorKind {
            },
            ErrorKind::UnknownIdent => {
                write!(f, "Identifier not found")
+           },
+           ErrorKind::WrongArgNumber => {
+               write!(f, "Wrong number of arguments")
            },
            ErrorKind::NotFunc => {
                write!(f, "Not a function")
@@ -41,6 +45,7 @@ pub enum EvalObject {
     Return(Box<EvalObject>),
     String(String),
     Error { kind: ErrorKind, details: String },
+    Builtin (fn(Vec<EvalObject>) -> EvalObject),
     Function {
         params: Vec<Ident>,
         body: Stmt,
@@ -58,6 +63,7 @@ impl EvalObject {
             EvalObject::Return(_) => "return",
             EvalObject::Error { .. } => "err",
             EvalObject::Function { .. } => "func",
+            EvalObject::Builtin { .. } => "builtin",
             EvalObject::Null => "null",
         }
     }

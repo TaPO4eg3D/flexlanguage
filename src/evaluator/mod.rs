@@ -1,14 +1,15 @@
-pub mod objects;
-pub mod environment;
-
-use objects::*;
-use crate::ast::*;
-
 use std::rc::Rc;
 use std::cell::RefCell;
 
 use std::iter::zip;
 
+pub mod objects;
+pub mod environment;
+pub mod builtin;
+
+use crate::ast::*;
+
+use objects::*;
 use environment::Environment;
 
 fn is_truthy(obj: EvalObject) -> bool {
@@ -92,23 +93,29 @@ fn eval_infix_expression(infix: Infix, left: EvalObject, right: EvalObject) -> E
 }
 
 fn apply_function(func: EvalObject, args: Vec<EvalObject>) -> EvalObject {
-    if let EvalObject::Function {params, body, env} = func {
-        let func_env = Rc::new(RefCell::new(Environment::new()));
+    match func {
+        EvalObject::Function {params, body, env} => {
+            let func_env = Rc::new(RefCell::new(Environment::new()));
 
-        for (arg, param) in zip(args, params) {
-            func_env.borrow_mut().set(param.0, arg);
-        }
+            for (arg, param) in zip(args, params) {
+                func_env.borrow_mut().set(param.0, arg);
+            }
 
-        func_env.borrow_mut().outer = Some(Rc::clone(&env));
-        let value = eval(Node::Stmt(body), Rc::clone(&func_env));
+            func_env.borrow_mut().outer = Some(Rc::clone(&env));
+            let value = eval(Node::Stmt(body), Rc::clone(&func_env));
 
-        if let EvalObject::Return(ret) = value {
-            *ret
-        } else { value }
-    } else {
-        EvalObject::Error {
-            kind: ErrorKind::NotFunc,
-            details: format!("TODO: ADD DETAILS"),
+            if let EvalObject::Return(ret) = value {
+                return *ret;
+            } else { return value; };
+        },
+        EvalObject::Builtin(handler) => {
+            return handler(args);
+        },
+        _ => {
+            return EvalObject::Error {
+                kind: ErrorKind::NotFunc,
+                details: format!("TODO: ADD DETAILS"),
+            }
         }
     }
 }
@@ -280,11 +287,17 @@ mod test {
     use crate::lexer::Lexer;
     use crate::parser::Parser;
 
+    use builtin::construct_builtins;
+
     fn run_eval(input: String) -> EvalObject {
         let mut chars: Vec<char> = input.chars().collect();
         let mut lexer = Lexer::new(input.len(), &mut chars);
         let mut parser = Parser::new(&mut lexer);
         let env = Rc::new(RefCell::new(Environment::new()));
+        env.borrow_mut().outer = Some(Rc::new(RefCell::new(Environment {
+            store: construct_builtins(),
+            outer: None,
+        })));
 
         return eval(Node::Program(parser.parse_program()), Rc::clone(&env));
     }
