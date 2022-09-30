@@ -4,18 +4,18 @@ use std::io::prelude::*;
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use crate::ast::Node;
+use flexcore::ast::Node;
 
-use crate::lexer::Lexer;
-use crate::parser::Parser;
+use flexcore::lexer::Lexer;
+use flexcore::parser::Parser;
 
-use crate::evaluator::eval;
-use crate::evaluator::environment::Environment;
-use crate::evaluator::builtin::construct_builtins;
+use flexcore::evaluator::eval;
+use flexcore::evaluator::environment::Environment;
+use flexcore::evaluator::builtin::construct_builtins;
 
 const PROMPT: &str = ">> ";
 
-pub fn start() {
+pub fn main() {
     let mut buffer = String::new();
     let env = Rc::new(RefCell::new(Environment::new()));
     env.borrow_mut().outer = Some(Rc::new(RefCell::new(Environment {
