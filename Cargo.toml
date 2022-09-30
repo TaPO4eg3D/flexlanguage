@@ -3,4 +3,5 @@
 members = [
     "flexcore",
     "flexbin",
+    "flexwasm",
 ]
