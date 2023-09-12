@@ -1,6 +1,9 @@
 # FLEX Language
 
-A toy language designed to flex
+A toy language designed to flex.
+
+The Language can be compiled as WASM and you can play with it right in your browswer
+[PLAYGROUND](https://tapo4eg3d.github.io/flexlanguage-playground/)
 
 ## Goals
 
